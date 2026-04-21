@@ -1,5 +1,12 @@
 import { getStore } from '@netlify/blobs';
-import type { Customer, Horse, Journal, Invoice, Product } from '../lib/types';
+import type {
+  Customer,
+  Horse,
+  Journal,
+  Invoice,
+  Product,
+  Treatment,
+} from '../lib/types';
 
 const STORE = 'hovjournal';
 
@@ -39,7 +46,16 @@ export const getHorse = (id: string) => getOne<Horse>(`horse:${id}`);
 export const saveHorse = (h: Horse) => setOne(`horse:${h.id}`, h);
 export const deleteHorse = (id: string) => deleteOne(`horse:${id}`);
 
-// ─── Journalanteckningar ──────────────────────────────────────────────────────
+// ─── Behandlingar (Treatments) ────────────────────────────────────────────────
+export const getTreatments = async (): Promise<Treatment[]> => {
+  const list = await getList<Treatment>('treatment:');
+  return list.sort((a, b) => (a.date < b.date ? 1 : -1));
+};
+export const getTreatment = (id: string) => getOne<Treatment>(`treatment:${id}`);
+export const saveTreatment = (t: Treatment) => setOne(`treatment:${t.id}`, t);
+export const deleteTreatmentBlob = (id: string) => deleteOne(`treatment:${id}`);
+
+// ─── Journalanteckningar (kvarstår) ───────────────────────────────────────────
 export const getJournals = () => getList<Journal>('journal:');
 export const getJournal = (id: string) => getOne<Journal>(`journal:${id}`);
 export const saveJournal = (j: Journal) => setOne(`journal:${j.id}`, j);
@@ -55,7 +71,7 @@ export const deleteProduct = (id: string) => deleteOne(`product:${id}`);
 export const getInvoices = () => getList<Invoice>('invoice:');
 export const getInvoice = (id: string) => getOne<Invoice>(`invoice:${id}`);
 export const saveInvoice = (inv: Invoice) => setOne(`invoice:${inv.id}`, inv);
-export const deleteInvoice = (id: string) => deleteOne(`invoice:${id}`);
+export const deleteInvoiceBlob = (id: string) => deleteOne(`invoice:${id}`);
 
 // ─── Foton (binär blob) ───────────────────────────────────────────────────────
 export async function savePhoto(photoId: string, data: ArrayBuffer, contentType: string) {
@@ -65,6 +81,7 @@ export async function savePhoto(photoId: string, data: ArrayBuffer, contentType:
 export async function getPhoto(photoId: string) {
   const s = store();
   const blob = await s.get(`photo:${photoId}`, { type: 'arrayBuffer' });
+  if (!blob) return null;
   const meta = await s.getMetadata(`photo:${photoId}`);
   return { data: blob, contentType: (meta?.metadata?.contentType as string) ?? 'image/jpeg' };
 }
@@ -91,21 +108,19 @@ export async function seedIfEmpty() {
   const p1: Product = { id: 'prod-1', name: 'Stålsko standard (fram)', category: 'sko_staal', description: 'Standardskoning, storlek 1–4', price: 280, unit: 'st', active: true, createdAt: now };
   const p2: Product = { id: 'prod-2', name: 'Stålsko förstärkt (bak)', category: 'sko_staal', description: 'Med stöd, storlek 2–5', price: 320, unit: 'st', active: true, createdAt: now };
   const p3: Product = { id: 'prod-3', name: 'EasyShoe Sport sula', category: 'sula', description: 'Skumsula med stöd', price: 195, unit: 'st', active: true, createdAt: now };
-  const p4: Product = { id: 'prod-4', name: 'Cityshoe aluminium', category: 'sko_aluminium', description: 'Lätt sko för hårt underlag', price: 340, unit: 'st', active: true, createdAt: now };
-  const p5: Product = { id: 'prod-5', name: 'Hovkräm 500ml', category: 'hovvard', description: 'Mjukgörande hovkräm', price: 89, unit: 'st', active: true, createdAt: now };
 
-  await Promise.all([saveProduct(p1), saveProduct(p2), saveProduct(p3), saveProduct(p4), saveProduct(p5)]);
+  await Promise.all([saveProduct(p1), saveProduct(p2), saveProduct(p3)]);
 
-  const j1: Journal = {
-    id: 'journal-1', horseId: 'horse-freja', customerId: 'cust-1',
-    date: '2026-04-14', rubrik: 'Skoning fram och bak', visitType: 'skoning',
-    anamnes: 'Ägaren noterar svagt ojämn gång vänster fram sedan förra skoningen.',
-    hovstatus: 'bor_foljas', diagnos: 'Ojämn belastning vänster fram',
-    behandlingAtgard: 'Ny skoning fram och bak. Kontrollerade balansen noggrant.',
-    rekommendation: 'Följ upp rörelsen, kontakta vid förvärring.',
-    photos: [], usedProducts: [{ productId: 'prod-1', name: 'Stålsko standard (fram)', quantity: 2, unitPrice: 280 }],
-    followUpDays: 56, price: 1800, createdAt: now,
+  const t1: Treatment = {
+    id: 'treatment-1',
+    horseId: 'horse-freja',
+    customerId: 'cust-1',
+    date: '2026-04-14',
+    type: 'skoning',
+    price: 1800,
+    notes: 'Ny skoning fram och bak. Kontrollerade balansen noggrant.',
+    photos: [],
+    createdAt: now,
   };
-
-  await saveJournal(j1);
+  await saveTreatment(t1);
 }

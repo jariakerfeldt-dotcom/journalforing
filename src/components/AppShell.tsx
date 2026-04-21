@@ -1,5 +1,44 @@
 import { Link, useRouterState } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
+
+export function PageContainer({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('px-4 sm:px-6 lg:px-8 py-6 sm:py-8 max-w-6xl mx-auto', className)}>
+      {children}
+    </div>
+  );
+}
+
+export function PageHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-semibold text-stone-900 tracking-tight">
+          {title}
+        </h1>
+        {description ? (
+          <p className="mt-1 text-sm text-stone-600 max-w-2xl">{description}</p>
+        ) : null}
+      </div>
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+    </div>
+  );
+}
 
 const NAV = [
   { to: '/', label: 'Översikt', icon: '🏠', exact: true },
