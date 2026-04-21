@@ -1,100 +1,119 @@
-export type TreatmentType = 'skoning' | 'verkning' | 'hovvard' | 'kontroll' | 'annat'
-
-export const TREATMENT_TYPES: Record<TreatmentType, string> = {
-  skoning: 'Skoning',
-  verkning: 'Verkning',
-  hovvard: 'Hovvård',
-  kontroll: 'Kontroll',
-  annat: 'Annat',
-}
-
-export const DEFAULT_PRICES: Record<TreatmentType, number> = {
-  skoning: 1800,
-  verkning: 800,
-  hovvard: 600,
-  kontroll: 450,
-  annat: 500,
-}
-
-export type InvoiceStatus = 'utkast' | 'skickad' | 'betald' | 'forfallen'
-
-export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
-  utkast: 'Utkast',
-  skickad: 'Skickad',
-  betald: 'Betald',
-  forfallen: 'Förfallen',
-}
-
+// ─── Kund ────────────────────────────────────────────────────────────────────
 export interface Customer {
-  id: string
-  name: string
-  email?: string
-  phone?: string
-  address?: string
-  orgNumber?: string
-  notes?: string
-  createdAt: string
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  orgNumber?: string;
+  notes?: string;
+  createdAt: string;
 }
 
+// ─── Häst ────────────────────────────────────────────────────────────────────
 export interface Horse {
-  id: string
-  customerId: string
-  name: string
-  breed?: string
-  color?: string
-  birthYear?: number
-  discipline?: string
-  notes?: string
-  createdAt: string
+  id: string;
+  customerId: string;
+  name: string;
+  breed?: string;
+  color?: string;
+  discipline?: string;
+  birthYear?: number;
+  importantInfo?: string;
+  createdAt: string;
 }
 
-export interface TreatmentPhoto {
-  key: string
-  uploadedAt: string
+// ─── Bild med notering ───────────────────────────────────────────────────────
+export interface JournalPhoto {
+  photoId: string;   // blob-nyckel
+  note?: string;     // fritext-notering per bild
 }
 
-export interface Treatment {
-  id: string
-  horseId: string
-  customerId: string
-  type: TreatmentType
-  date: string
-  notes?: string
-  price: number
-  photos: TreatmentPhoto[]
-  invoiceId?: string
-  followUpDate?: string
-  createdAt: string
+// ─── Journalanteckning (ersätter Treatment) ───────────────────────────────────
+export type JournalStatus = 'bra_skick' | 'bor_foljas' | 'atgard_kravs';
+export type VisitType = 'skoning' | 'verkning' | 'hovvard' | 'kontroll' | 'annat';
+
+export interface Journal {
+  id: string;
+  horseId: string;
+  customerId: string;
+  date: string;                      // ISO-datum
+
+  // Journalfält
+  rubrik: string;
+  visitType: VisitType;
+  anamnes?: string;                  // bakgrund / ägarens berättelse
+  hovstatus: JournalStatus;
+  diagnos?: string;
+  behandlingAtgard?: string;         // utförd åtgärd
+  rekommendation?: string;           // råd till ägaren
+
+  // Bilder
+  photos: JournalPhoto[];
+
+  // Produkter som använts
+  usedProducts: UsedProduct[];
+
+  // Uppföljning
+  followUpDays?: number;
+
+  // Ekonomi
+  price: number;
+  invoiceId?: string;
+
+  createdAt: string;
 }
+
+// ─── Produkt (produktkatalog) ─────────────────────────────────────────────────
+export type ProductCategory =
+  | 'sko_staal'
+  | 'sko_aluminium'
+  | 'sko_plast'
+  | 'sula'
+  | 'spik'
+  | 'verktyg'
+  | 'hovvard'
+  | 'ovrigt';
+
+export interface Product {
+  id: string;
+  name: string;
+  category: ProductCategory;
+  description?: string;
+  price: number;          // SEK exkl. moms
+  unit: string;           // 'st', 'par', 'förpackning' osv.
+  sku?: string;
+  stock?: number;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface UsedProduct {
+  productId: string;
+  name: string;           // snapshot vid användningstillfället
+  quantity: number;
+  unitPrice: number;
+}
+
+// ─── Faktura ──────────────────────────────────────────────────────────────────
+export type InvoiceStatus = 'utkast' | 'skickad' | 'betald' | 'forfallen';
 
 export interface InvoiceLine {
-  treatmentId?: string
-  description: string
-  amount: number
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  vatRate: number;        // 0.25
 }
 
 export interface Invoice {
-  id: string
-  number: string
-  customerId: string
-  issuedDate: string
-  dueDate: string
-  paidDate?: string
-  status: InvoiceStatus
-  lines: InvoiceLine[]
-  subtotal: number
-  vat: number
-  total: number
-  notes?: string
-  createdAt: string
-}
-
-export interface DashboardStats {
-  activeCustomers: number
-  totalHorses: number
-  treatmentsThisMonth: number
-  unpaidTotal: number
-  unpaidCount: number
-  revenueThisMonth: number
-  monthlyRevenue: Array<{ month: string; amount: number }>
+  id: string;
+  number: string;         // t.ex. "2026-007"
+  customerId: string;
+  journalIds: string[];   // kopplade journalanteckningar
+  lines: InvoiceLine[];
+  status: InvoiceStatus;
+  issueDate: string;
+  dueDate: string;
+  notes?: string;
+  createdAt: string;
 }
