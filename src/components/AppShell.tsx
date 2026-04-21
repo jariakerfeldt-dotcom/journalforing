@@ -1,190 +1,108 @@
-import { useState } from 'react'
-import { Link, useRouterState } from '@tanstack/react-router'
-import {
-  LayoutDashboard,
-  Users,
-  ClipboardList,
-  Receipt,
-  Plus,
-  Menu,
-  X,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Link, useRouterState } from '@tanstack/react-router';
+import { useState } from 'react';
 
-const navItems: Array<{
-  to: string
-  label: string
-  icon: typeof LayoutDashboard
-  exact?: boolean
-}> = [
-  { to: '/', label: 'Översikt', icon: LayoutDashboard, exact: true },
-  { to: '/kunder', label: 'Kunder', icon: Users },
-  { to: '/behandlingar', label: 'Behandlingar', icon: ClipboardList },
-  { to: '/fakturor', label: 'Fakturor', icon: Receipt },
-]
-
-function HorseshoeMark() {
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-7 w-7"
-      aria-hidden
-    >
-      <path
-        d="M9 6.5C9 6.5 6 9 6 14.5C6 20 9 24 16 24C23 24 26 20 26 14.5C26 9 23 6.5 23 6.5"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <circle cx="9" cy="6.5" r="1.4" fill="currentColor" />
-      <circle cx="23" cy="6.5" r="1.4" fill="currentColor" />
-      <circle cx="7.4" cy="11" r="1" fill="currentColor" />
-      <circle cx="24.6" cy="11" r="1" fill="currentColor" />
-      <circle cx="7" cy="16" r="1" fill="currentColor" />
-      <circle cx="25" cy="16" r="1" fill="currentColor" />
-      <circle cx="8.5" cy="20.5" r="1" fill="currentColor" />
-      <circle cx="23.5" cy="20.5" r="1" fill="currentColor" />
-    </svg>
-  )
-}
-
-function Brand() {
-  return (
-    <Link
-      to="/"
-      className="flex items-center gap-2.5 px-2 py-1 rounded-lg text-stone-900 hover:bg-stone-100 transition-colors"
-    >
-      <span className="flex items-center justify-center h-9 w-9 rounded-lg bg-amber-700 text-white">
-        <HorseshoeMark />
-      </span>
-      <div className="flex flex-col leading-tight">
-        <span className="text-sm font-semibold tracking-tight">Hovjournal</span>
-        <span className="text-[11px] text-stone-500 font-medium">
-          Journal & fakturering
-        </span>
-      </div>
-    </Link>
-  )
-}
-
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
-  const { location } = useRouterState()
-  return (
-    <nav className="flex flex-col gap-1">
-      {navItems.map((item) => {
-        const isActive = item.exact
-          ? location.pathname === item.to
-          : location.pathname === item.to ||
-            location.pathname.startsWith(item.to + '/')
-        const Icon = item.icon
-        return (
-          <Link
-            key={item.to}
-            to={item.to}
-            onClick={onNavigate}
-            className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              isActive
-                ? 'bg-amber-50 text-amber-900 ring-1 ring-inset ring-amber-200'
-                : 'text-stone-700 hover:bg-stone-100',
-            )}
-          >
-            <Icon className="h-4 w-4" />
-            {item.label}
-          </Link>
-        )
-      })}
-    </nav>
-  )
-}
+const NAV = [
+  { to: '/', label: 'Översikt', icon: '🏠', exact: true },
+  { to: '/journalforing', label: 'Journalföring', icon: '📋' },
+  { to: '/kunder', label: 'Kunder', icon: '👥' },
+  { to: '/hastar', label: 'Hästar', icon: '🐎' },
+  { to: '/fakturor', label: 'Fakturor', icon: '📄' },
+  { to: '/produkter', label: 'Produkter', icon: '🛒' },
+];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const routerState = useRouterState();
+  const pathname = routerState.location.pathname;
+
+  function isActive(to: string, exact?: boolean) {
+    return exact ? pathname === to : pathname.startsWith(to);
+  }
 
   return (
-    <div className="min-h-screen bg-stone-50 flex flex-col lg:flex-row">
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r lg:border-stone-200 lg:bg-white lg:sticky lg:top-0 lg:h-screen">
-        <div className="px-4 py-5 border-b border-stone-100">
-          <Brand />
+    <div className="app-shell">
+      {/* SIDEBAR – desktop */}
+      <nav className="sidebar">
+        <div className="sidebar-logo">
+          <span className="logo-horse">🐴</span>
+          <div>
+            <div className="logo-title">Hovjournal</div>
+            <div className="logo-sub">Journal & fakturering</div>
+          </div>
         </div>
-        <div className="flex-1 p-3">
-          <NavList />
-        </div>
-        <div className="p-3 border-t border-stone-100">
-          <Link
-            to="/behandlingar/ny"
-            className="flex items-center justify-center gap-2 rounded-lg bg-amber-700 text-white h-10 px-4 text-sm font-medium hover:bg-amber-800 transition-colors shadow-sm"
-          >
-            <Plus className="h-4 w-4" />
-            Ny behandling
+
+        <div className="nav-section">
+          <div className="nav-group-label">Översikt</div>
+          <Link to="/" className={`nav-item ${isActive('/', true) ? 'active' : ''}`}>
+            <span className="nav-icon">🏠</span> Översikt
+          </Link>
+
+          <div className="nav-group-label" style={{ marginTop: 16 }}>Arbete</div>
+          <Link to="/journalforing" className={`nav-item ${isActive('/journalforing') ? 'active' : ''}`}>
+            <span className="nav-icon">📋</span> Journalföring
+          </Link>
+          <Link to="/kunder" className={`nav-item ${isActive('/kunder') ? 'active' : ''}`}>
+            <span className="nav-icon">👥</span> Kunder
+          </Link>
+          <Link to="/hastar" className={`nav-item ${isActive('/hastar') ? 'active' : ''}`}>
+            <span className="nav-icon">🐎</span> Hästar
+          </Link>
+
+          <div className="nav-group-label" style={{ marginTop: 16 }}>Ekonomi</div>
+          <Link to="/fakturor" className={`nav-item ${isActive('/fakturor') ? 'active' : ''}`}>
+            <span className="nav-icon">📄</span> Fakturor
+          </Link>
+          <Link to="/produkter" className={`nav-item ${isActive('/produkter') ? 'active' : ''}`}>
+            <span className="nav-icon">🛒</span> Produkter
           </Link>
         </div>
-      </aside>
 
-      {/* Mobile header */}
-      <header className="lg:hidden sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-stone-200">
-        <div className="flex items-center justify-between px-4 h-14">
-          <Brand />
-          <button
-            type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            className="h-10 w-10 inline-flex items-center justify-center rounded-lg text-stone-700 hover:bg-stone-100"
-            aria-label="Öppna meny"
-          >
-            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </div>
-        {mobileOpen ? (
-          <div className="px-4 pb-4 border-b border-stone-200">
-            <NavList onNavigate={() => setMobileOpen(false)} />
-            <Link
-              to="/behandlingar/ny"
-              onClick={() => setMobileOpen(false)}
-              className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-amber-700 text-white h-10 px-4 text-sm font-medium hover:bg-amber-800"
-            >
-              <Plus className="h-4 w-4" />
-              Ny behandling
-            </Link>
+        <div className="sidebar-footer">
+          <div className="user-chip">
+            <div className="user-avatar">H</div>
+            <div>
+              <div className="user-name">Hovslagare</div>
+              <div className="user-role">Inloggad</div>
+            </div>
           </div>
-        ) : null}
-      </header>
+        </div>
+      </nav>
 
-      <main className="flex-1 min-w-0">{children}</main>
-    </div>
-  )
-}
-
-export function PageHeader({
-  title,
-  description,
-  actions,
-}: {
-  title: string
-  description?: string
-  actions?: React.ReactNode
-}) {
-  return (
-    <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-stone-900">
-          {title}
-        </h1>
-        {description ? (
-          <p className="text-sm text-stone-600 mt-1 max-w-2xl">{description}</p>
-        ) : null}
+      {/* MOBILHEADER */}
+      <div className="mobile-header">
+        <button className="hamburger" onClick={() => setMobileOpen(true)}>☰</button>
+        <span className="mobile-logo">🐴 Hovjournal</span>
+        <Link to="/journalforing/ny" className="mobile-add">+</Link>
       </div>
-      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
-    </div>
-  )
-}
 
-export function PageContainer({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
-      {children}
+      {/* MOBIL DRAWER */}
+      {mobileOpen && (
+        <div className="drawer-overlay" onClick={() => setMobileOpen(false)}>
+          <nav className="drawer" onClick={e => e.stopPropagation()}>
+            <button className="drawer-close" onClick={() => setMobileOpen(false)}>✕</button>
+            {NAV.map(n => (
+              <Link key={n.to} to={n.to} className={`drawer-item ${isActive(n.to, n.exact) ? 'active' : ''}`} onClick={() => setMobileOpen(false)}>
+                <span>{n.icon}</span> {n.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      )}
+
+      {/* INNEHÅLL */}
+      <main className="main-content">
+        {children}
+      </main>
+
+      {/* MOBILNAVBAR (bottom) */}
+      <nav className="mobile-nav">
+        {NAV.slice(0, 5).map(n => (
+          <Link key={n.to} to={n.to} className={`mobile-nav-item ${isActive(n.to, n.exact) ? 'active' : ''}`}>
+            <span className="mobile-nav-icon">{n.icon}</span>
+            <span className="mobile-nav-label">{n.label}</span>
+          </Link>
+        ))}
+      </nav>
     </div>
-  )
+  );
 }
