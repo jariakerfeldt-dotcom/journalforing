@@ -19,17 +19,62 @@ export interface Horse {
   color?: string;
   discipline?: string;
   birthYear?: number;
+  notes?: string;
   importantInfo?: string;
   createdAt: string;
 }
 
 // ─── Bild med notering ───────────────────────────────────────────────────────
 export interface JournalPhoto {
-  photoId: string;   // blob-nyckel
-  note?: string;     // fritext-notering per bild
+  photoId: string;
+  note?: string;
 }
 
-// ─── Journalanteckning (ersätter Treatment) ───────────────────────────────────
+// ─── Foto på en behandling ───────────────────────────────────────────────────
+export interface TreatmentPhoto {
+  key: string;
+  note?: string;
+}
+
+// ─── Behandling (Treatment) ─────────────────────────────────────────────────
+export type TreatmentType =
+  | 'skoning'
+  | 'verkning'
+  | 'hovvard'
+  | 'kontroll'
+  | 'annat';
+
+export const TREATMENT_TYPES: Record<TreatmentType, string> = {
+  skoning: 'Skoning',
+  verkning: 'Verkning',
+  hovvard: 'Hovvård',
+  kontroll: 'Kontroll',
+  annat: 'Annat',
+};
+
+export const DEFAULT_PRICES: Record<TreatmentType, number> = {
+  skoning: 1800,
+  verkning: 700,
+  hovvard: 500,
+  kontroll: 400,
+  annat: 500,
+};
+
+export interface Treatment {
+  id: string;
+  horseId: string;
+  customerId: string;
+  date: string;
+  type: TreatmentType;
+  price: number;
+  notes?: string;
+  followUpDate?: string;
+  photos: TreatmentPhoto[];
+  invoiceId?: string;
+  createdAt: string;
+}
+
+// ─── Journalanteckning (nyare, rikare modell) ────────────────────────────────
 export type JournalStatus = 'bra_skick' | 'bor_foljas' | 'atgard_kravs';
 export type VisitType = 'skoning' | 'verkning' | 'hovvard' | 'kontroll' | 'annat';
 
@@ -37,27 +82,21 @@ export interface Journal {
   id: string;
   horseId: string;
   customerId: string;
-  date: string;                      // ISO-datum
+  date: string;
 
-  // Journalfält
   rubrik: string;
   visitType: VisitType;
-  anamnes?: string;                  // bakgrund / ägarens berättelse
+  anamnes?: string;
   hovstatus: JournalStatus;
   diagnos?: string;
-  behandlingAtgard?: string;         // utförd åtgärd
-  rekommendation?: string;           // råd till ägaren
+  behandlingAtgard?: string;
+  rekommendation?: string;
 
-  // Bilder
   photos: JournalPhoto[];
-
-  // Produkter som använts
   usedProducts: UsedProduct[];
 
-  // Uppföljning
   followUpDays?: number;
 
-  // Ekonomi
   price: number;
   invoiceId?: string;
 
@@ -80,8 +119,8 @@ export interface Product {
   name: string;
   category: ProductCategory;
   description?: string;
-  price: number;          // SEK exkl. moms
-  unit: string;           // 'st', 'par', 'förpackning' osv.
+  price: number;
+  unit: string;
   sku?: string;
   stock?: number;
   active: boolean;
@@ -90,7 +129,7 @@ export interface Product {
 
 export interface UsedProduct {
   productId: string;
-  name: string;           // snapshot vid användningstillfället
+  name: string;
   quantity: number;
   unitPrice: number;
 }
@@ -98,22 +137,36 @@ export interface UsedProduct {
 // ─── Faktura ──────────────────────────────────────────────────────────────────
 export type InvoiceStatus = 'utkast' | 'skickad' | 'betald' | 'forfallen';
 
+export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
+  utkast: 'Utkast',
+  skickad: 'Skickad',
+  betald: 'Betald',
+  forfallen: 'Förfallen',
+};
+
 export interface InvoiceLine {
   description: string;
-  quantity: number;
-  unitPrice: number;
-  vatRate: number;        // 0.25
+  amount: number;
+  quantity?: number;
+  unitPrice?: number;
+  vatRate?: number;
 }
 
 export interface Invoice {
   id: string;
-  number: string;         // t.ex. "2026-007"
+  number: string;
   customerId: string;
-  journalIds: string[];   // kopplade journalanteckningar
+  treatmentIds: string[];
+  journalIds?: string[];
   lines: InvoiceLine[];
   status: InvoiceStatus;
-  issueDate: string;
+  issuedDate: string;
+  issueDate?: string;
   dueDate: string;
+  paidDate?: string;
+  subtotal: number;
+  vat: number;
+  total: number;
   notes?: string;
   createdAt: string;
 }
