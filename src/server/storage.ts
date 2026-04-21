@@ -1,383 +1,111 @@
-import { getStore } from '@netlify/blobs'
-import type {
-  Customer,
-  Horse,
-  Invoice,
-  Treatment,
-} from '@/lib/types'
+import { getStore } from '@netlify/blobs';
+import type { Customer, Horse, Journal, Invoice, Product } from '../lib/types';
 
-const STORE_NAME = 'hovjournal'
+const STORE = 'hovjournal';
 
 function store() {
-  return getStore({ name: STORE_NAME, consistency: 'strong' })
+  return getStore({ name: STORE, consistency: 'strong' });
 }
 
-async function listAll<T>(prefix: string): Promise<T[]> {
-  const s = store()
-  const { blobs } = await s.list({ prefix })
-  const results = await Promise.all(
-    blobs.map((b) => s.get(b.key, { type: 'json' }) as Promise<T | null>),
-  )
-  return results.filter((r): r is T => r !== null)
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+async function getList<T>(prefix: string): Promise<T[]> {
+  const s = store();
+  const { blobs } = await s.list({ prefix });
+  const items = await Promise.all(blobs.map((b) => s.get(b.key, { type: 'json' })));
+  return items.filter(Boolean) as T[];
 }
 
-export async function listCustomers(): Promise<Customer[]> {
-  await ensureSeed()
-  const items = await listAll<Customer>('customers/')
-  return items.sort((a, b) => a.name.localeCompare(b.name, 'sv'))
+async function getOne<T>(key: string): Promise<T | null> {
+  return store().get(key, { type: 'json' });
 }
 
-export async function getCustomer(id: string): Promise<Customer | null> {
-  await ensureSeed()
-  return (await store().get(`customers/${id}`, { type: 'json' })) as Customer | null
+async function setOne<T>(key: string, value: T): Promise<void> {
+  await store().setJSON(key, value);
 }
 
-export async function saveCustomer(customer: Customer): Promise<void> {
-  await store().setJSON(`customers/${customer.id}`, customer)
+async function deleteOne(key: string): Promise<void> {
+  await store().delete(key);
 }
 
-export async function deleteCustomer(id: string): Promise<void> {
-  await store().delete(`customers/${id}`)
+// ─── Kunder ───────────────────────────────────────────────────────────────────
+export const getCustomers = () => getList<Customer>('customer:');
+export const getCustomer = (id: string) => getOne<Customer>(`customer:${id}`);
+export const saveCustomer = (c: Customer) => setOne(`customer:${c.id}`, c);
+export const deleteCustomer = (id: string) => deleteOne(`customer:${id}`);
+
+// ─── Hästar ───────────────────────────────────────────────────────────────────
+export const getHorses = () => getList<Horse>('horse:');
+export const getHorse = (id: string) => getOne<Horse>(`horse:${id}`);
+export const saveHorse = (h: Horse) => setOne(`horse:${h.id}`, h);
+export const deleteHorse = (id: string) => deleteOne(`horse:${id}`);
+
+// ─── Journalanteckningar ──────────────────────────────────────────────────────
+export const getJournals = () => getList<Journal>('journal:');
+export const getJournal = (id: string) => getOne<Journal>(`journal:${id}`);
+export const saveJournal = (j: Journal) => setOne(`journal:${j.id}`, j);
+export const deleteJournal = (id: string) => deleteOne(`journal:${id}`);
+
+// ─── Produkter ────────────────────────────────────────────────────────────────
+export const getProducts = () => getList<Product>('product:');
+export const getProduct = (id: string) => getOne<Product>(`product:${id}`);
+export const saveProduct = (p: Product) => setOne(`product:${p.id}`, p);
+export const deleteProduct = (id: string) => deleteOne(`product:${id}`);
+
+// ─── Fakturor ─────────────────────────────────────────────────────────────────
+export const getInvoices = () => getList<Invoice>('invoice:');
+export const getInvoice = (id: string) => getOne<Invoice>(`invoice:${id}`);
+export const saveInvoice = (inv: Invoice) => setOne(`invoice:${inv.id}`, inv);
+export const deleteInvoice = (id: string) => deleteOne(`invoice:${id}`);
+
+// ─── Foton (binär blob) ───────────────────────────────────────────────────────
+export async function savePhoto(photoId: string, data: ArrayBuffer, contentType: string) {
+  await store().set(`photo:${photoId}`, data, { metadata: { contentType } });
 }
 
-export async function listHorses(): Promise<Horse[]> {
-  await ensureSeed()
-  const items = await listAll<Horse>('horses/')
-  return items.sort((a, b) => a.name.localeCompare(b.name, 'sv'))
+export async function getPhoto(photoId: string) {
+  const s = store();
+  const blob = await s.get(`photo:${photoId}`, { type: 'arrayBuffer' });
+  const meta = await s.getMetadata(`photo:${photoId}`);
+  return { data: blob, contentType: (meta?.metadata?.contentType as string) ?? 'image/jpeg' };
 }
 
-export async function getHorse(id: string): Promise<Horse | null> {
-  await ensureSeed()
-  return (await store().get(`horses/${id}`, { type: 'json' })) as Horse | null
-}
+// ─── Seed-data ────────────────────────────────────────────────────────────────
+export async function seedIfEmpty() {
+  const customers = await getCustomers();
+  if (customers.length > 0) return;
 
-export async function saveHorse(horse: Horse): Promise<void> {
-  await store().setJSON(`horses/${horse.id}`, horse)
-}
+  const now = new Date().toISOString();
 
-export async function deleteHorse(id: string): Promise<void> {
-  await store().delete(`horses/${id}`)
-}
+  const c1: Customer = { id: 'cust-1', name: 'Anna Lindström', email: 'anna@example.com', phone: '070-111 22 33', createdAt: now };
+  const c2: Customer = { id: 'cust-2', name: 'Björn Ekman', email: 'bjorn@example.com', phone: '073-444 55 66', createdAt: now };
+  const c3: Customer = { id: 'cust-3', name: 'Cecilia Wahlgren', email: 'cecilia@example.com', phone: '076-777 88 99', createdAt: now };
 
-export async function listTreatments(): Promise<Treatment[]> {
-  await ensureSeed()
-  const items = await listAll<Treatment>('treatments/')
-  return items.sort((a, b) => b.date.localeCompare(a.date))
-}
+  await Promise.all([saveCustomer(c1), saveCustomer(c2), saveCustomer(c3)]);
 
-export async function getTreatment(id: string): Promise<Treatment | null> {
-  await ensureSeed()
-  return (await store().get(`treatments/${id}`, { type: 'json' })) as Treatment | null
-}
+  const h1: Horse = { id: 'horse-freja', customerId: 'cust-1', name: 'Freja', breed: 'KWPN', color: 'Fuxe', discipline: 'Hoppning', createdAt: now };
+  const h2: Horse = { id: 'horse-odin', customerId: 'cust-1', name: 'Oden', breed: 'Svensk varmblod', color: 'Brun', discipline: 'Dressyr', createdAt: now };
+  const h3: Horse = { id: 'horse-saga', customerId: 'cust-2', name: 'Saga', breed: 'Connemara', color: 'Grå', discipline: 'Allround', createdAt: now };
 
-export async function saveTreatment(treatment: Treatment): Promise<void> {
-  await store().setJSON(`treatments/${treatment.id}`, treatment)
-}
+  await Promise.all([saveHorse(h1), saveHorse(h2), saveHorse(h3)]);
 
-export async function deleteTreatment(id: string): Promise<void> {
-  await store().delete(`treatments/${id}`)
-}
+  const p1: Product = { id: 'prod-1', name: 'Stålsko standard (fram)', category: 'sko_staal', description: 'Standardskoning, storlek 1–4', price: 280, unit: 'st', active: true, createdAt: now };
+  const p2: Product = { id: 'prod-2', name: 'Stålsko förstärkt (bak)', category: 'sko_staal', description: 'Med stöd, storlek 2–5', price: 320, unit: 'st', active: true, createdAt: now };
+  const p3: Product = { id: 'prod-3', name: 'EasyShoe Sport sula', category: 'sula', description: 'Skumsula med stöd', price: 195, unit: 'st', active: true, createdAt: now };
+  const p4: Product = { id: 'prod-4', name: 'Cityshoe aluminium', category: 'sko_aluminium', description: 'Lätt sko för hårt underlag', price: 340, unit: 'st', active: true, createdAt: now };
+  const p5: Product = { id: 'prod-5', name: 'Hovkräm 500ml', category: 'hovvard', description: 'Mjukgörande hovkräm', price: 89, unit: 'st', active: true, createdAt: now };
 
-export async function listInvoices(): Promise<Invoice[]> {
-  await ensureSeed()
-  const items = await listAll<Invoice>('invoices/')
-  return items.sort((a, b) => b.issuedDate.localeCompare(a.issuedDate))
-}
+  await Promise.all([saveProduct(p1), saveProduct(p2), saveProduct(p3), saveProduct(p4), saveProduct(p5)]);
 
-export async function getInvoice(id: string): Promise<Invoice | null> {
-  await ensureSeed()
-  return (await store().get(`invoices/${id}`, { type: 'json' })) as Invoice | null
-}
+  const j1: Journal = {
+    id: 'journal-1', horseId: 'horse-freja', customerId: 'cust-1',
+    date: '2026-04-14', rubrik: 'Skoning fram och bak', visitType: 'skoning',
+    anamnes: 'Ägaren noterar svagt ojämn gång vänster fram sedan förra skoningen.',
+    hovstatus: 'bor_foljas', diagnos: 'Ojämn belastning vänster fram',
+    behandlingAtgard: 'Ny skoning fram och bak. Kontrollerade balansen noggrant.',
+    rekommendation: 'Följ upp rörelsen, kontakta vid förvärring.',
+    photos: [], usedProducts: [{ productId: 'prod-1', name: 'Stålsko standard (fram)', quantity: 2, unitPrice: 280 }],
+    followUpDays: 56, price: 1800, createdAt: now,
+  };
 
-export async function saveInvoice(invoice: Invoice): Promise<void> {
-  await store().setJSON(`invoices/${invoice.id}`, invoice)
-}
-
-export async function deleteInvoice(id: string): Promise<void> {
-  await store().delete(`invoices/${id}`)
-}
-
-export async function savePhoto(
-  key: string,
-  data: ArrayBuffer,
-  contentType: string,
-): Promise<void> {
-  const s = store()
-  await s.set(key, data, { metadata: { contentType } })
-}
-
-export async function getPhoto(
-  key: string,
-): Promise<{ data: ArrayBuffer; contentType: string } | null> {
-  const s = store()
-  const result = await s.getWithMetadata(key, { type: 'arrayBuffer' })
-  if (!result) return null
-  const contentType =
-    (result.metadata?.contentType as string | undefined) ?? 'image/jpeg'
-  return { data: result.data as ArrayBuffer, contentType }
-}
-
-let seedPromise: Promise<void> | null = null
-
-async function ensureSeed(): Promise<void> {
-  if (seedPromise) return seedPromise
-  seedPromise = doSeed().catch((err) => {
-    seedPromise = null
-    throw err
-  })
-  return seedPromise
-}
-
-async function doSeed() {
-  const s = store()
-  const marker = await s.get('meta/seeded', { type: 'text' })
-  if (marker === 'v1') return
-
-  const now = new Date()
-  const iso = (d: Date) => d.toISOString().slice(0, 10)
-  const mk = (days: number) => {
-    const d = new Date(now)
-    d.setDate(d.getDate() - days)
-    return d
-  }
-
-  const customers: Customer[] = [
-    {
-      id: 'cust-anna',
-      name: 'Anna Lindström',
-      email: 'anna@lindstromsgard.se',
-      phone: '070-123 45 67',
-      address: 'Gårdsvägen 12, 745 92 Enköping',
-      orgNumber: '197812-0123',
-      createdAt: iso(mk(90)),
-    },
-    {
-      id: 'cust-bjorn',
-      name: 'Björn Ekman',
-      email: 'bjorn.ekman@ekshage.se',
-      phone: '073-456 78 90',
-      address: 'Ekshage 4, 186 95 Vallentuna',
-      createdAt: iso(mk(60)),
-    },
-    {
-      id: 'cust-cecilia',
-      name: 'Cecilia Wahlgren',
-      email: 'cecilia@rydebackstall.se',
-      phone: '076-234 56 78',
-      address: 'Rydebäcks Stall, 253 68 Helsingborg',
-      orgNumber: '556789-1234',
-      createdAt: iso(mk(120)),
-    },
-  ]
-
-  const horses: Horse[] = [
-    {
-      id: 'horse-freja',
-      customerId: 'cust-anna',
-      name: 'Freja',
-      breed: 'Svenskt varmblod',
-      color: 'Fux',
-      birthYear: 2017,
-      discipline: 'Dressyr',
-      notes: 'Känslig i vänster framhov, behöver mjuk övergång.',
-      createdAt: iso(mk(90)),
-    },
-    {
-      id: 'horse-odin',
-      customerId: 'cust-anna',
-      name: 'Oden',
-      breed: 'Islandshäst',
-      color: 'Svart',
-      birthYear: 2014,
-      discipline: 'Distans',
-      createdAt: iso(mk(85)),
-    },
-    {
-      id: 'horse-saga',
-      customerId: 'cust-bjorn',
-      name: 'Saga',
-      breed: 'Ardenner',
-      color: 'Brun',
-      birthYear: 2012,
-      discipline: 'Körning',
-      notes: 'Stora hovar, beställ breda skor i förväg.',
-      createdAt: iso(mk(60)),
-    },
-    {
-      id: 'horse-milo',
-      customerId: 'cust-cecilia',
-      name: 'Milo',
-      breed: 'Connemara',
-      color: 'Skimmel',
-      birthYear: 2019,
-      discipline: 'Hoppning',
-      createdAt: iso(mk(40)),
-    },
-    {
-      id: 'horse-nova',
-      customerId: 'cust-cecilia',
-      name: 'Nova',
-      breed: 'Svenskt halvblod',
-      color: 'Brun',
-      birthYear: 2016,
-      discipline: 'Fälttävlan',
-      createdAt: iso(mk(38)),
-    },
-  ]
-
-  const treatments: Treatment[] = [
-    {
-      id: 'treat-1',
-      horseId: 'horse-freja',
-      customerId: 'cust-anna',
-      type: 'skoning',
-      date: iso(mk(6)),
-      price: 1800,
-      notes: 'Ny skoning fram och bak. Hovarna i gott skick, svagt ojämn belastning på vänster fram.',
-      photos: [],
-      followUpDate: iso(new Date(now.getFullYear(), now.getMonth() + 2, now.getDate())),
-      createdAt: iso(mk(6)),
-    },
-    {
-      id: 'treat-2',
-      horseId: 'horse-odin',
-      customerId: 'cust-anna',
-      type: 'verkning',
-      date: iso(mk(6)),
-      price: 800,
-      notes: 'Barfotaverkning. Fin hovkvalitet, stabil balans.',
-      photos: [],
-      createdAt: iso(mk(6)),
-    },
-    {
-      id: 'treat-3',
-      horseId: 'horse-saga',
-      customerId: 'cust-bjorn',
-      type: 'skoning',
-      date: iso(mk(13)),
-      price: 2100,
-      notes: 'Bredare skor monterade, passade perfekt. Rengjort strålspalter.',
-      photos: [],
-      createdAt: iso(mk(13)),
-    },
-    {
-      id: 'treat-4',
-      horseId: 'horse-milo',
-      customerId: 'cust-cecilia',
-      type: 'verkning',
-      date: iso(mk(20)),
-      price: 800,
-      notes: 'Första verkningen sedan flytt. Prima skick.',
-      photos: [],
-      createdAt: iso(mk(20)),
-    },
-    {
-      id: 'treat-5',
-      horseId: 'horse-nova',
-      customerId: 'cust-cecilia',
-      type: 'skoning',
-      date: iso(mk(22)),
-      price: 1800,
-      notes: 'Ny skoning inför tävlingssäsong.',
-      photos: [],
-      createdAt: iso(mk(22)),
-    },
-    {
-      id: 'treat-6',
-      horseId: 'horse-freja',
-      customerId: 'cust-anna',
-      type: 'kontroll',
-      date: iso(mk(48)),
-      price: 450,
-      notes: 'Uppföljning mellan skoningar. Ingen lossad sko.',
-      photos: [],
-      createdAt: iso(mk(48)),
-    },
-    {
-      id: 'treat-7',
-      horseId: 'horse-saga',
-      customerId: 'cust-bjorn',
-      type: 'skoning',
-      date: iso(mk(55)),
-      price: 2100,
-      notes: 'Ordinarie skoning.',
-      photos: [],
-      createdAt: iso(mk(55)),
-    },
-  ]
-
-  const invoices: Invoice[] = [
-    {
-      id: 'inv-1',
-      number: '2026-001',
-      customerId: 'cust-anna',
-      issuedDate: iso(mk(6)),
-      dueDate: iso(mk(-24)),
-      status: 'skickad',
-      lines: [
-        { treatmentId: 'treat-1', description: 'Skoning – Freja', amount: 1800 },
-        { treatmentId: 'treat-2', description: 'Verkning – Oden', amount: 800 },
-      ],
-      subtotal: 2600,
-      vat: 650,
-      total: 3250,
-      createdAt: iso(mk(6)),
-    },
-    {
-      id: 'inv-2',
-      number: '2026-002',
-      customerId: 'cust-bjorn',
-      issuedDate: iso(mk(13)),
-      dueDate: iso(mk(-17)),
-      status: 'skickad',
-      lines: [
-        { treatmentId: 'treat-3', description: 'Skoning – Saga', amount: 2100 },
-      ],
-      subtotal: 2100,
-      vat: 525,
-      total: 2625,
-      createdAt: iso(mk(13)),
-    },
-    {
-      id: 'inv-3',
-      number: '2026-003',
-      customerId: 'cust-cecilia',
-      issuedDate: iso(mk(20)),
-      dueDate: iso(mk(-10)),
-      paidDate: iso(mk(15)),
-      status: 'betald',
-      lines: [
-        { treatmentId: 'treat-4', description: 'Verkning – Milo', amount: 800 },
-        { treatmentId: 'treat-5', description: 'Skoning – Nova', amount: 1800 },
-      ],
-      subtotal: 2600,
-      vat: 650,
-      total: 3250,
-      createdAt: iso(mk(20)),
-    },
-    {
-      id: 'inv-4',
-      number: '2025-042',
-      customerId: 'cust-bjorn',
-      issuedDate: iso(mk(55)),
-      dueDate: iso(mk(25)),
-      status: 'forfallen',
-      lines: [
-        { treatmentId: 'treat-7', description: 'Skoning – Saga', amount: 2100 },
-      ],
-      subtotal: 2100,
-      vat: 525,
-      total: 2625,
-      createdAt: iso(mk(55)),
-    },
-  ]
-
-  await Promise.all([
-    ...customers.map((c) => s.setJSON(`customers/${c.id}`, c)),
-    ...horses.map((h) => s.setJSON(`horses/${h.id}`, h)),
-    ...treatments.map((t) => s.setJSON(`treatments/${t.id}`, t)),
-    ...invoices.map((i) => s.setJSON(`invoices/${i.id}`, i)),
-  ])
-
-  await s.set('meta/seeded', 'v1')
+  await saveJournal(j1);
 }
